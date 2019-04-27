@@ -6,7 +6,7 @@
     "colors": "^1.1.2",
     "discord.js": "^11.4.2",
     "express": "^4.15.2",
-    "irc": "^0.5.2",
+    "irc-upd": "^0.10.0",
     "jsonfile": "^5.0.0",
     "password-prompt": "^1.1.2",
     "socket.io": "^2.0.1"

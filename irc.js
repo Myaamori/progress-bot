@@ -1,4 +1,4 @@
-import irc from "irc";
+import irc from "irc-upd";
 import config from "./config.js";
 import { io as _io, getStats, validCommands, getCommand, getValue, triggerMatch, getMsg, newTitleTrigger, getIRCtoSay, getDiscordtoSay} from "./common.js";
 import { discordSay } from "./discord.js";
