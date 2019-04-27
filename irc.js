@@ -9,12 +9,40 @@ let bot;
 
 export function initIRC() {
 	console.log("Connecting to IRC...".green);
-	bot = new irc.Client(config.server, config.botName, {
-		channels: config.channels
-	});
+
+	if (config.identify && !config.nick_secret) {
+		let pass_prompt = require("password-prompt");
+		pass_prompt("ENTER PASSWORD AT ANY TIME").then(function(password) {
+			config.nick_secret = password;
+			init();
+		});
+	} else {
+		init();
+	}
+}
+
+function init() {
+	let ircConfig = {
+		channels: config.channels,
+		userName: config.userName || config.botName,
+		realName: config.realName || config.botName
+	};
+
+	if (config.identify && config.sasl) {
+		console.log("Identifying with SASL".yellow);
+		ircConfig.sasl = true;
+		ircConfig.password = config.nick_secret;
+	}
+
+	bot = new irc.Client(config.server, config.botName, ircConfig);
 	console.log("Connected!".yellow);
 
-	authorize();
+	if (config.identify && !config.sasl) {
+		bot.addListener('registered', (message) => {
+			console.log("Identifying with NickServ".yellow);
+			bot.say(config.nickserv, `identify ${config.nick_secret}`);
+		})
+	}
 
 	let lastUpdated = exports.lastUpdated;
 
@@ -61,25 +89,6 @@ export function initIRC() {
 		console.log("IRC Error ".red, message);
 	});
 
-	
-
-	async function authorize() {
-		if (config.identify) {
-			console.log("Identify nick enabled".yellow);
-			if (config.nick_secret) {
-				console.log("Password found".green);
-				let password = config.nick_secret;
-				bot.say(config.nickserv, `identify ${password}`);
-			}
-			else {
-				console.log("Prompting for password".yellow);
-				let pass_prompt = require("password-prompt");
-				let password = await pass_prompt("ENTER PASSWORD AT ANY TIME");
-				bot.say(config.nickserv, `identify ${password}`);
-			}
-			console.log("Identified".green); //todo: check if identify was successful
-		}
-	}
 }
 
 export function ircSay(message) {

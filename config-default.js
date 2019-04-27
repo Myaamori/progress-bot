@@ -26,6 +26,9 @@ const config = {
 	identify: false, //Set to true to enable nickserv identification
 	nick_secret: false, //set to a "" enclosed password if you dont want to enter it every time
 	// else leave false to prompt for a password
+	sasl: false, // enable authentication through SASL rather than nickserv
+	userName: false, // bot username (defaults to botName)
+	realName: false, // bot realname (defaults to botName)
 	nickserv: "nickserv", //nick identification service's name
 	
 	
