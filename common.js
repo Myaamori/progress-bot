@@ -1,5 +1,8 @@
 import jsonFile from "jsonfile";
 import config from "./config.js";
+import { ircSay } from "./irc.js";
+import { discordSay } from "./discord.js";
+
 let ioInstance;
 let stats;
 
@@ -116,6 +119,31 @@ export function getDiscordtoSay(command) {
 		return `**${stats[title]}** | Episode ${stats[episode]} | ${capitalizeFirst(command)} progress @ ${stats[command]}%`;
 	}
 	else return null;
+}
+
+export function runCommand(text) {
+	const message = getMsg(text);
+	const command = getCommand(message);
+	const value = getValue(message);
+
+	if (validCommands.includes(command)) {
+		newTitleTrigger(command, value);
+		console.log("Valid command: ".yellow, command, value);
+		stats[command] = value;
+
+		let discordMessage = getDiscordtoSay(command);
+		let ircMessage = getIRCtoSay(command);
+		if (config.enableDiscord && discordMessage) discordSay(discordMessage);
+		if (config.enableIrc && ircMessage) ircSay(ircMessage);
+
+
+		ioInstance.emit("update-stats", {
+			"command": command,
+			"value": value
+		});
+		lastUpdated = new Date().toUTCString();
+		ioInstance.emit("date-update", lastUpdated);
+	}
 }
 
 function capitalizeFirst(string) {

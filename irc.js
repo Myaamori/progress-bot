@@ -1,10 +1,7 @@
 import irc from "irc-upd";
 import config from "./config.js";
-import { io as _io, getStats, validCommands, getCommand, getValue, triggerMatch, getMsg, newTitleTrigger, getIRCtoSay, getDiscordtoSay} from "./common.js";
-import { discordSay } from "./discord.js";
+import { triggerMatch, runCommand } from "./common.js";
 
-const io = _io();
-const stats = getStats();
 let bot;
 
 export function initIRC() {
@@ -55,33 +52,8 @@ function init() {
 	bot.addListener(listener, (from, text, message) => {
 		//extract the first n characters from each message and check if it matches the trigger word
 		if (triggerMatch(text)) {
-			const msg = getMsg(text);
-			console.log("Message Received: ", msg);
 			//if we have a matching trigger, extract the command the value
-			const command = getCommand(msg);
-			const value = getValue(msg);
-	
-	
-			if (validCommands.includes(command)) {
-	
-				newTitleTrigger(command, value);
-				console.log("Valid command: ".yellow, command, value);
-				stats[command] = value;
-				
-				let ircMessage = getIRCtoSay(command);
-				let discordMessage = getDiscordtoSay(command);
-				
-				if (config.enableDiscord && discordMessage) ircSay(ircMessage);
-				if (config.enableIrc && ircMessage) discordSay(discordMessage);
-			}
-	
-			io.emit("update-stats", {
-				"command": command,
-				"value": value
-			});
-			lastUpdated = new Date().toUTCString();
-			io.emit("date-update", lastUpdated);
-	
+			runCommand(text);
 		}
 	});
 
