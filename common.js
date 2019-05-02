@@ -6,16 +6,6 @@ import { discordSay } from "./discord.js";
 let ioInstance;
 let stats;
 
-const encode = "encode";
-const title = "title";
-const tlc = "tlc";
-const episode = "episode";
-const time = "time";
-const tl = "tl";
-const ts = "ts";
-const edit = "edit";
-const qc = "qc";
-
 export function initIo(http) {
 	ioInstance = require("socket.io")(http);
 	return ioInstance;
@@ -26,7 +16,8 @@ export function io() {
 }
 
 export var lastUpdated = new Date().toUTCString();
-export var validCommands = ["encode", "tlc", "title", "episode", "time", "tl", "ts", "edit", "qc"];
+export var validCommands = ["encode", "tlc", "episode", "time", "tl", "ts", "edit", "qc"];
+export var globalCommands = ["add-show", "remove-show"];
 
 export function getStats() {
 	if (!stats){
@@ -40,17 +31,7 @@ export function getStats() {
 				//If no data file was found, start with dummy data
 				console.log("No default data file found".yellow);
 				console.log("Creating dummy data".yellow);
-				stats = {
-					"encode": 0,
-					"title": "Another show",
-					"episode": "5/12",
-					"time": "20",
-					"tl": "50",
-					"ts": 0,
-					"edit": "50",
-					"qc": "60",
-					"tlc": "20"
-				};
+				stats = {};
 			}
 		}
 	}
@@ -67,82 +48,79 @@ export function getMsg(text) {
 	return text.substring(config.trigger.length);
 }
 
-export function getCommand(msg) {
-	return msg.substring(0, msg.indexOf(" "));
-}
-
-export function getValue(msg) {
-	return msg.substring(msg.indexOf(" ") + 1);
-}
-
-export function newTitleTrigger(command, value) {
-	const tempTitle = stats["title"];
-	if (command === "title" || command === "episode") {
-		console.log("Resetting everything".yellow);
-		for (const key in stats) {
-			if (stats.hasOwnProperty(key)) {
-				stats[key] = 0;
-				ioInstance.emit("update-stats", {
-					"command": key,
-					"value": 0
-				});
-			}
-		}
-
-		if (command === "episode") {
-			stats["title"] = tempTitle;
-			stats["episode"] = value;
-			ioInstance.emit("update-stats", {
-				"command": "title",
-				"value": tempTitle
-			}); 
-		}
-	}
-	
-}
-
-export function getIRCtoSay(command) {
+export function getIRCtoSay(show, command) {
 	if (command === "episode") {
-		return `Currently working on \u0002${stats[title]}\u0002 episode ${stats[episode]}`;
+		return `Currently working on \u0002${stats[show].title}\u0002 ` +
+			`episode ${stats[show].episode}`;
 	}
-	else if (command !== "title") {
-		return `\u0002${stats[title]}\u0002 | Episode ${stats[episode]} | ${capitalizeFirst(command)} progress @ ${stats[command]}%`;
+	else {
+		return `\u0002${stats[show].title}\u0002 | Episode ${stats[show].episode} | ` +
+			`${capitalizeFirst(command)} progress @ ${stats[show][command]}%`;
 	}
-	else return null;
 }
 
-export function getDiscordtoSay(command) {
+export function getDiscordtoSay(show, command) {
 	if (command === "episode") {
-		return `Currently working on **${stats[title]}** episode ${stats[episode]}`;
+		return `Currently working on **${stats[show].title}** episode ${stats[show].episode}`;
 	}
-	else if (command !== "title") {
-		return `**${stats[title]}** | Episode ${stats[episode]} | ${capitalizeFirst(command)} progress @ ${stats[command]}%`;
+	else {
+		return `**${stats[show].title}** | Episode ${stats[show].episode} | ` +
+			`${capitalizeFirst(command)} progress @ ${stats[show][command]}%`;
 	}
-	else return null;
+}
+
+function setStat(show, command, value) {
+	stats[show][command] = value;
+	ioInstance.emit("update-stats", {
+		"show": show,
+		"command": command,
+		"value": value
+	});
 }
 
 export function runCommand(text) {
 	const message = getMsg(text);
-	const command = getCommand(message);
-	const value = getValue(message);
+	let [show, command, ...value] = message.split(" ");
+	value = value.join(" ");
 
-	if (validCommands.includes(command)) {
-		newTitleTrigger(command, value);
+	if (stats.hasOwnProperty(show)) {
+		if (!validCommands.includes(command)) {
+			return;
+		}
+
 		console.log("Valid command: ".yellow, command, value);
-		stats[command] = value;
+		if (command === "episode") {
+			console.log("Resetting everything".yellow);
+			for (const key of validCommands) {
+				setStat(show, key, key == "episode" ? value : 0);
+			}
+		} else {
+			setStat(show, command, value);
+		}
 
-		let discordMessage = getDiscordtoSay(command);
-		let ircMessage = getIRCtoSay(command);
-		if (config.enableDiscord && discordMessage) discordSay(discordMessage);
-		if (config.enableIrc && ircMessage) ircSay(ircMessage);
+		let discordMessage = getDiscordtoSay(show, command);
+		let ircMessage = getIRCtoSay(show, command);
+		if (config.enableDiscord) discordSay(discordMessage);
+		if (config.enableIrc) ircSay(ircMessage);
 
-
-		ioInstance.emit("update-stats", {
-			"command": command,
-			"value": value
-		});
 		lastUpdated = new Date().toUTCString();
 		ioInstance.emit("date-update", lastUpdated);
+	} else if (globalCommands.includes(show) && !globalCommands.includes(command)) {
+		// interpret first value as command, second as the show to add/remove
+		[show, command] = [command, show];
+		if (command == "add-show") {
+			stats[show] = {title: value};
+			for (const cmd of validCommands) {
+				stats[show][cmd] = 0;
+			}
+			ioInstance.emit("add-show", {
+				"show": show,
+				"stats": stats[show]
+			});
+		} else if (command == "remove-show") {
+			delete stats[show];
+			ioInstance.emit("remove-show", show);
+		}
 	}
 }
 

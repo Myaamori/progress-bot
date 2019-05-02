@@ -59,36 +59,14 @@ app.get("/progressbar.min.js", (req, res) => {
 
 io.on("connection", socket => {
 	console.log("Socket connection established. ID: ".grey, socket.id);
-	socket.emit("irc message", "Connected!");
 
 	socket.emit("date-update", lastUpdated);
-
-	
-
-	//for each new client, update their stats (initial update)
-	for (let i = 0; i < validCommands.length; i++) {
-		let command = validCommands[i];
-		//console.log(command);
-		if (command !== "title" && command !== "episode") {
-			socket.emit("init-stats", {
-				"command": validCommands[i],
-				"value": stats[validCommands[i]] / 100
-			});
-		}
-		else {
-			socket.emit("init-stats", {
-				"command": validCommands[i],
-				"value": stats[validCommands[i]]
-			});
-		}
-	}
-
+	socket.emit("init-stats", stats);
 	io.emit("update-users", io.engine.clientsCount);
 
 	socket.on("disconnect", socket => {
 		io.emit("update-users", io.engine.clientsCount);
 	});
-
 });
 
 
