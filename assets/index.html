@@ -3,7 +3,7 @@
 
 <head>
     <title>Progress Bot</title>
-	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,600" rel="stylesheet" type="text/css">
+        <link rel='stylesheet' href='//fonts.googleapis.com/css?family=Amatic+SC%7CRoboto:400,700%7CRoboto+Slab%7CRoboto+Condensed' type='text/css' />
 	<link rel="stylesheet" href="style.css">
 </head>
 
@@ -11,10 +11,11 @@
     <div id="outer-container">
         <div id="show-list">
         </div>
-        <div id="footer"><span id="plug"><img src="gh-light.png" alt="GitHub Icon"><span id="plug-text"><a href="https://github.com/rb28z2/progress-bot" target="_blank">See this project on GitHub</a></span></span>
-            <span class="footer-text" id="totalUsers"></span> <br/>
-            <span class="footer-text">Last updated on <span id="update"></span></span>
-        </div>
+        <ul id="footer">
+            <li class="footer-text"><a href="https://github.com/Myaamori/progress-bot">See this project on GitHub</a></li>
+            <li class="footer-text" id="totalUsers"></li>
+            <li class="footer-text">Last updated on <span id="update"></span></li>
+        </ul>
     </div>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>

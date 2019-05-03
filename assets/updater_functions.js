@@ -24,7 +24,7 @@ function formatStat(node, command, value) {
 }
 
 function formatShowItem(show, stats) {
-	let showItem = document.createElement("div");
+	let showItem = document.createElement("p");
 	showItem.id = show + "-container";
 
 	let title = document.createElement("div");
@@ -87,7 +87,7 @@ socket.on("add-show", function(val) {
 	}
 
 	let showItem = formatShowItem(val.show, val.stats);
-	let currentShows = showList.querySelectorAll("div");
+	let currentShows = showList.querySelectorAll("p");
 
 	if (currentShows.length == 0) {
 		showList.appendChild(showItem);
