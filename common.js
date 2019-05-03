@@ -16,7 +16,9 @@ export function io() {
 }
 
 export var lastUpdated = new Date().toUTCString();
-export var validCommands = ["encode", "tlc", "episode", "time", "tl", "ts", "edit", "qc"];
+// available commands + default values
+export var validCommands = {encode: 0, tlc: 0, episode: "0/?", time: 0, tl: 0, ts: 0,
+	                        ts: 0, edit: 0, qc: 0, message: ""};
 export var globalCommands = ["add-show", "remove-show"];
 
 export function getStats() {
@@ -63,9 +65,12 @@ export function getIRCtoSay(show, command) {
 		return `Currently working on \u0002${stats[show].title}\u0002 ` +
 			`episode ${stats[show].episode}`;
 	}
-	else {
+	else if (command !== "message") {
 		return `\u0002${stats[show].title}\u0002 | Episode ${stats[show].episode} | ` +
 			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
+	}
+	else {
+		return null;
 	}
 }
 
@@ -73,9 +78,12 @@ export function getDiscordtoSay(show, command) {
 	if (command === "episode") {
 		return `Currently working on **${stats[show].title}** episode ${stats[show].episode}`;
 	}
-	else {
+	else if (command !== "message") {
 		return `**${stats[show].title}** | Episode ${stats[show].episode} | ` +
 			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
+	}
+	else {
+		return null;
 	}
 }
 
@@ -94,24 +102,29 @@ export function runCommand(text) {
 	value = value.join(" ");
 
 	if (stats.hasOwnProperty(show)) {
-		if (!validCommands.includes(command)) {
+		if (!validCommands.hasOwnProperty(command)) {
 			return;
 		}
 
 		console.log("Valid command: ".yellow, command, value);
 		if (command === "episode") {
 			console.log("Resetting everything".yellow);
-			for (const key of validCommands) {
-				setStat(show, key, key == "episode" ? value : 0);
+			for (const [cmd, def] of Object.entries(validCommands)) {
+				setStat(show, cmd, cmd == "episode" ? value : def);
 			}
 		} else {
 			setStat(show, command, value);
+
+			// clear message if other status set
+			if (command !== "message") {
+				setStat(show, "message", "");
+			}
 		}
 
 		let discordMessage = getDiscordtoSay(show, command);
 		let ircMessage = getIRCtoSay(show, command);
-		if (config.enableDiscord) discordSay(discordMessage);
-		if (config.enableIrc) ircSay(ircMessage);
+		if (config.enableDiscord && discordMessage) discordSay(discordMessage);
+		if (config.enableIrc && ircMessage) ircSay(ircMessage);
 
 		lastUpdated = new Date().toUTCString();
 		ioInstance.emit("date-update", lastUpdated);
@@ -120,8 +133,8 @@ export function runCommand(text) {
 		[show, command] = [command, show];
 		if (command == "add-show") {
 			stats[show] = {title: value};
-			for (const cmd of validCommands) {
-				stats[show][cmd] = 0;
+			for (const [cmd, def] of Object.entries(validCommands)) {
+				stats[show][cmd] = cmd == def;
 			}
 			ioInstance.emit("add-show", {
 				"show": show,
