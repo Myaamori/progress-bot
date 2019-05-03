@@ -58,6 +58,10 @@ function formatShowItem(show, stats) {
 
 socket.on("init-stats", function(val) {
 	let showList = document.getElementById("show-list");
+	while (showList.childNodes.length > 0) {
+		showList.removeChild(showList.firstChild);
+	}
+
 	for (const [show, show_stats] of Object.entries(val)) {
 		let showItem = formatShowItem(show, show_stats);
 		showList.appendChild(showItem);
