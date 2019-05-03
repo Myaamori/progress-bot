@@ -9,7 +9,7 @@ function formatStat(node, command, value) {
 	let text;
 	if (value == 100) {
 		text = command;
-		node.classList.add("commandDone");
+		node.style.textDecoration = "line-through";
 	} else {
 		if (value == 0) {
 			text = command;
@@ -18,7 +18,7 @@ function formatStat(node, command, value) {
 		} else {
 			text = command + ": " + value;
 		}
-		node.classList.remove("commandDone");
+		node.style.textDecoration = "none";
 	}
 	node.textContent = text;
 }
@@ -28,7 +28,7 @@ function formatShowItem(show, stats) {
 	showItem.id = show + "-container";
 
 	let title = document.createElement("div");
-	title.classList.add("showTitle");
+	title.style.fontWeight = "bold";
 	title.textContent = stats.title;
 	showItem.appendChild(title);
 
@@ -99,12 +99,4 @@ socket.on("add-show", function(val) {
 socket.on("remove-show", function(show) {
 	let showItem = document.getElementById(show + "-container");
 	showItem.parentNode.removeChild(showItem);
-});
-
-socket.on("update-users", function(val) {
-	$("#totalUsers").text("Users: " + val);
-});
-
-socket.on("date-update", function(val) {
-	$("#update").text(val);
 });
