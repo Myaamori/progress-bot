@@ -2,82 +2,81 @@
 var socket = io();
 
 console.log("Starting");
-var stats = {};
+var order = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
 //var [encode], [title], [episode], [time], [tl], [ts], [edit], [qc];
 
+function formatStat(node, command, value) {
+	let text;
+	if (value == 100) {
+		text = command;
+		node.classList.add("commandDone");
+	} else {
+		text = command + ": " + value + "%";
+		node.classList.remove("commandDone");
+	}
+	node.textContent = text;
+}
+
+function formatShowItem(show, stats) {
+	let showItem = document.createElement("div");
+	showItem.id = show + "-container";
+
+	let title = document.createElement("div");
+	title.classList.add("showTitle");
+	title.textContent = stats.title;
+	showItem.appendChild(title);
+
+	let commandList = document.createElement("div");
+	commandList.appendChild(document.createTextNode("» "));
+	let episodeItem = document.createElement("span");
+	episodeItem.textContent = stats.episode;
+	episodeItem.id = show + "-episode";
+	commandList.appendChild(episodeItem);
+	commandList.appendChild(document.createTextNode(" @ "));
+
+	for (let i = 0; i < order.length; i++) {
+		let command = order[i];
+		let commandItem = document.createElement("span");
+		formatStat(commandItem, command, stats[command]);
+		commandItem.id = show + "-" + command;
+		commandList.appendChild(commandItem);
+
+		if (i != order.length - 1) {
+			commandList.appendChild(document.createTextNode(", "));
+		}
+	}
+
+	showItem.appendChild(commandList);
+	return showItem;
+}
 
 socket.on("init-stats", function(val) {
-	if (val["command"] !== "title" && val["command"] !== "episode") {
-		//console.log(val["command"]);
-
-		var dispCommand = "";
-		if (val["command"] === "tl")
-			dispCommand = "Translation";
-		else if (val["command"] === "edit")
-			dispCommand = "Editing";
-		else if (val["command"] === "ts")
-			dispCommand = "Typesetting";
-		else if (val["command"] === "time")
-			dispCommand = "Timing";
-		else if (val["command"] === "encode")
-			dispCommand = "Encoding";
-		else if (val["command"] === "tlc")
-			dispCommand = "TLC";
-		else if (val["command"] === "qc")
-			dispCommand = "QC";
-
-
-
-		stats[val["command"]] = new ProgressBar.Line("#pb-" + val["command"], {
-			easing: "easeInOut",
-			color: "#287fb8",
-			trailColor: "#555",
-			trailWidth: 1,
-			svgStyle: {
-				width: "100%",
-				height: "50%"
-			},
-			text: {
-				style: {
-					autoStyleContainer: false,
-					color: "#fff",
-					fontFamily: "\"Open Sans\", Helvetica, Arial, sans-serif",
-					fontSize: "3.4vh",
-					position: "absolute",
-					width: "100%",
-					textAlign: "center",
-					fontWeight: "600",
-					top: "0%"
-				}
-			},
-			step: (state, bar) => {
-				bar.setText(dispCommand + ": " + Math.round(bar.value() * 100) + "%");
-			}
-		});
-		stats[val["command"]].animate(val["value"]);
-	} else {
-		console.log(val["value"]);
-		if (val["command"] === "title") {
-			$("#pb-title").text(val["value"]);
-		} else {
-			$("#pb-episode").text("Episode: " + val["value"]);
-		}
+	let showList = document.getElementById("show-list");
+	for (const [show, show_stats] of Object.entries(val)) {
+		let showItem = formatShowItem(show, show_stats);
+		showList.appendChild(showItem);
 	}
 });
 
 
 socket.on("update-stats", function(val) {
 	console.log("Updating");
-	if (val["command"] !== "title" && val["command"] !== "episode") {
-		stats[val["command"]].animate(val["value"] / 100);
+	let commandItem = document.getElementById(val.show + "-" + val.command);
+	if (val.command == "episode") {
+		commandItem.textContent = val.value;
 	} else {
-		if (val["command"] === "title") {
-			$("#pb-title").text(val["value"]);
-		} else {
-			$("#pb-episode").text("Episode: " + val["value"]);
-		}
+		formatStat(commandItem, val.command, val.value);
 	}
+});
 
+socket.on("add-show", function(val) {
+	let showList = document.getElementById("show-list");
+	showList.appendChild(formatShowItem(val.show, val.stats));
+});
+
+socket.on("remove-show", function(show) {
+	let showItem = document.getElementById(show + "-container");
+	showItem.parentNode.removeChild(showItem);
 });
 
 socket.on("update-users", function(val) {
