@@ -48,6 +48,16 @@ export function getMsg(text) {
 	return text.substring(config.trigger.length);
 }
 
+function getProgress(value) {
+	// don't add % if not a valid number
+	if (isNaN(value)) {
+		return value;
+	}
+	else {
+		return value + '%';
+	}
+}
+
 export function getIRCtoSay(show, command) {
 	if (command === "episode") {
 		return `Currently working on \u0002${stats[show].title}\u0002 ` +
@@ -55,7 +65,7 @@ export function getIRCtoSay(show, command) {
 	}
 	else {
 		return `\u0002${stats[show].title}\u0002 | Episode ${stats[show].episode} | ` +
-			`${capitalizeFirst(command)} progress @ ${stats[show][command]}%`;
+			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
 	}
 }
 
@@ -65,7 +75,7 @@ export function getDiscordtoSay(show, command) {
 	}
 	else {
 		return `**${stats[show].title}** | Episode ${stats[show].episode} | ` +
-			`${capitalizeFirst(command)} progress @ ${stats[show][command]}%`;
+			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
 	}
 }
 
