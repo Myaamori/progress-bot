@@ -14,10 +14,9 @@ export function initDiscord() {
 	let lastUpdated = exports.lastUpdated;
 
 	client.on("message", msg => {
-		let authenticated = false;
-		
-		if (config.discordListenChannels.includes(msg.channel.id))
-			authenticated = true;
+		let authenticated = config.discordListenChannels.includes(msg.channel.id) ||
+			(msg.channel.parent &&
+				config.discordListenCategories.includes(msg.channel.parent.id));
 
 		if (triggerMatch(msg.content) && authenticated) {
 			runCommand(msg.content);
