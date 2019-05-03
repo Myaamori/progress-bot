@@ -61,11 +61,11 @@ function getProgress(value) {
 }
 
 export function getIRCtoSay(show, command) {
-	if (command === "episode") {
+	if (command === "episode" && config.sendEpisodeMessage) {
 		return `Currently working on \u0002${stats[show].title}\u0002 ` +
 			`episode ${stats[show].episode}`;
 	}
-	else if (command !== "message") {
+	else if (command !== "message" && command !== "episode") {
 		return `\u0002${stats[show].title}\u0002 | Episode ${stats[show].episode} | ` +
 			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
 	}
@@ -75,10 +75,10 @@ export function getIRCtoSay(show, command) {
 }
 
 export function getDiscordtoSay(show, command) {
-	if (command === "episode") {
+	if (command === "episode" && config.sendEpisodeMessage) {
 		return `Currently working on **${stats[show].title}** episode ${stats[show].episode}`;
 	}
-	else if (command !== "message") {
+	else if (command !== "message" && command !== "episode") {
 		return `**${stats[show].title}** | Episode ${stats[show].episode} | ` +
 			`${capitalizeFirst(command)} progress @ ${getProgress(stats[show][command])}`;
 	}

@@ -30,7 +30,8 @@ const config = {
 	userName: false, // bot username (defaults to botName)
 	realName: false, // bot realname (defaults to botName)
 	nickserv: "nickserv", //nick identification service's name
-	
+
+	sendEpisodeMessage: true, // whether to send a message when the episode is changed
 	
 	enableDiscord: false,
 	discordKey: "yourkeyhere", // your discord bot token
