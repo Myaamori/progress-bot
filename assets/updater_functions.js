@@ -11,7 +11,13 @@ function formatStat(node, command, value) {
 		text = command;
 		node.classList.add("commandDone");
 	} else {
-		text = command + ": " + value + "%";
+		if (value == 0) {
+			text = command;
+		} else if (!isNaN(value)) {
+			text = command + ": " + value + "%";
+		} else {
+			text = command + ": " + value;
+		}
 		node.classList.remove("commandDone");
 	}
 	node.textContent = text;
