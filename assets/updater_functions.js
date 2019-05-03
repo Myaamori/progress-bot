@@ -42,18 +42,29 @@ function formatShowItem(show, stats) {
 	commandList.appendChild(episodeItem);
 	commandList.appendChild(document.createTextNode(" @ "));
 
+	let commands = document.createElement("span");
+	commands.id = show + "-commands";
 	for (let i = 0; i < order.length; i++) {
 		let command = order[i];
 		let commandItem = document.createElement("span");
 		formatStat(commandItem, command, stats[command]);
 		commandItem.id = show + "-" + command;
-		commandList.appendChild(commandItem);
+		commands.appendChild(commandItem);
 
 		if (i != order.length - 1) {
-			commandList.appendChild(document.createTextNode(", "));
+			commands.appendChild(document.createTextNode(", "));
 		}
 	}
+	let showMessage = "message" in stats && stats.message != "";
+	commands.style.display = showMessage ? "none" : "inline";
 
+	let message = document.createElement("span");
+	message.id = show + "-message";
+	message.textContent = stats.message;
+	message.style.display = showMessage ? "inline" : "none";
+
+	commandList.appendChild(commands);
+	commandList.appendChild(message);
 	showItem.appendChild(commandList);
 	return showItem;
 }
@@ -74,8 +85,15 @@ socket.on("init-stats", function(val) {
 socket.on("update-stats", function(val) {
 	console.log("Updating");
 	let commandItem = document.getElementById(val.show + "-" + val.command);
-	if (val.command == "episode") {
+	if (val.command == "episode" || val.command == "message") {
 		commandItem.textContent = val.value;
+
+		if (val.command == "message") {
+			let commands = document.getElementById(val.show + "-commands");
+			commands.style.display = val.value == "" ? "inline" : "none";
+			let message = document.getElementById(val.show + "-message");
+			message.style.display = val.value == "" ? "none" : "inline";
+		}
 	} else {
 		formatStat(commandItem, val.command, val.value);
 	}
