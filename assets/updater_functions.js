@@ -71,7 +71,19 @@ socket.on("update-stats", function(val) {
 
 socket.on("add-show", function(val) {
 	let showList = document.getElementById("show-list");
-	showList.appendChild(formatShowItem(val.show, val.stats));
+	let prevShowItem = document.getElementById(val.show + "-container");
+	if (prevShowItem !== null) {
+		prevShowItem.parentNode.removeChild(prevShowItem);
+	}
+
+	let showItem = formatShowItem(val.show, val.stats);
+	let currentShows = showList.querySelectorAll("div");
+
+	if (currentShows.length == 0) {
+		showList.appendChild(showItem);
+	} else {
+		showList.insertBefore(showItem, showList.childNodes[0]);
+	}
 });
 
 socket.on("remove-show", function(show) {
