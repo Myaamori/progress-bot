@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
-var socket = io();
+
+const port = document.getElementById("show-list").dataset.port || window.location.port;
+var socket = io(window.location.protocol + "//" + window.location.hostname + ":" + port);
 
 console.log("Starting");
 var order = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
