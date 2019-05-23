@@ -16,10 +16,14 @@ export function io() {
 }
 
 export var lastUpdated = new Date().toUTCString();
-// available commands + default values
-export var validCommands = {encode: 0, tlc: 0, episode: "0/?", time: 0, tl: 0, ts: 0,
-	                        ts: 0, edit: 0, qc: 0, message: ""};
-export var globalCommands = ["add-show", "remove-show"];
+// available base roles (default value 0)
+export var defaultRoles = {
+	encode: "Encode", tlc: "Translation Checking", time: "Timing",
+	tl: "Translation", ts: "Typesetting", edit: "Edit", qc: "Quality Control"
+};
+// non-customizable roles + default values
+export var specialRoles = {episode: "0/?", message: ""};
+export var globalCommands = ["add-show", "remove-show", "add-role", "remove-role"];
 
 export function getStats() {
 	if (!stats){
@@ -35,6 +39,10 @@ export function getStats() {
 				console.log("Creating dummy data".yellow);
 				stats = {};
 			}
+		}
+
+		if (!("roles" in stats)) {
+			stats.roles = defaultRoles;
 		}
 	}
 	return stats;
@@ -96,22 +104,48 @@ function setStat(show, command, value) {
 	});
 }
 
+function resetValues(show, notifyChange) {
+	let roles = stats[show].hasOwnProperty("roles") ? stats[show].roles : Object.keys(defaultRoles);
+	for (let role of roles) {
+		if (notifyChange) {
+			setStat(show, role, 0);
+		} else {
+			stats[show][role] = 0;
+		}
+	}
+
+	for (let [role, defaultValue] of Object.entries(specialRoles)) {
+		if (notifyChange) {
+			setStat(show, role, defaultValue);
+		} else {
+			stats[show][role] = defaultValue;
+		}
+	}
+}
+
 export function runCommand(text) {
 	const message = getMsg(text);
 	let [show, command, ...value] = message.split(" ");
 	value = value.join(" ");
 
 	if (stats.hasOwnProperty(show)) {
-		if (!validCommands.hasOwnProperty(command)) {
+		if (command == "roles") {
+			setStat(show, command, value.split(" "));
+			stats[show].roles.forEach(x => setStat(show, x, 0));
+			return;
+		}
+
+		if (!specialRoles.hasOwnProperty(command) &&
+				!(stats[show].hasOwnProperty("roles") && stats[show].roles.includes(command)) &&
+				!(!stats[show].hasOwnProperty("roles") && stats.roles.hasOwnProperty(command))) {
 			return;
 		}
 
 		console.log("Valid command: ".yellow, command, value);
 		if (command === "episode") {
 			console.log("Resetting everything".yellow);
-			for (const [cmd, def] of Object.entries(validCommands)) {
-				setStat(show, cmd, cmd == "episode" ? value : def);
-			}
+			resetValues(show, true);
+			setStat(show, "episode", value);
 		} else {
 			setStat(show, command, value);
 
@@ -130,12 +164,10 @@ export function runCommand(text) {
 		ioInstance.emit("date-update", lastUpdated);
 	} else if (globalCommands.includes(show) && !globalCommands.includes(command)) {
 		// interpret first value as command, second as the show to add/remove
-		[show, command] = [command, show];
+		[command, show] = [show, command];
 		if (command == "add-show") {
 			stats[show] = {title: value};
-			for (const [cmd, def] of Object.entries(validCommands)) {
-				stats[show][cmd] = cmd == def;
-			}
+			resetValues(show, false);
 			ioInstance.emit("add-show", {
 				"show": show,
 				"stats": stats[show]
@@ -143,12 +175,24 @@ export function runCommand(text) {
 		} else if (command == "remove-show") {
 			delete stats[show];
 			ioInstance.emit("remove-show", show);
+		} else if (command == "add-role") {
+			stats.roles[show] = value;
+			ioInstance.emit("add-role", {
+				"role": show,
+				"value": value
+			});
+		} else if (command == "remove-role") {
+			delete stats.roles[show];
+			ioInstance.emit("remove-role", show);
 		}
 	}
 }
 
 function capitalizeFirst(string) {
-	if (string.length > 3) {
+	if (stats.roles[string]) {
+		return stats.roles[string];
+	}
+	else if (string.length > 3) {
 		return string.charAt(0).toUpperCase() + string.slice(1);
 	}
 	else {

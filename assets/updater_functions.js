@@ -4,8 +4,8 @@ const port = document.getElementById("show-list").dataset.port || window.locatio
 var socket = io(window.location.protocol + "//" + window.location.hostname + ":" + port);
 
 console.log("Starting");
-var order = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
-//var [encode], [title], [episode], [time], [tl], [ts], [edit], [qc];
+var defaultRoles = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
+var allStats = {};
 
 function formatStat(node, command, value) {
 	let text;
@@ -43,15 +43,16 @@ function formatShowItem(show, stats) {
 	commandList.appendChild(document.createTextNode(" @ "));
 
 	let commands = document.createElement("span");
+	let roles = stats.roles || defaultRoles;
 	commands.id = show + "-commands";
-	for (let i = 0; i < order.length; i++) {
-		let command = order[i];
+	for (let i = 0; i < roles.length; i++) {
+		let command = roles[i];
 		let commandItem = document.createElement("span");
 		formatStat(commandItem, command, stats[command]);
 		commandItem.id = show + "-" + command;
 		commands.appendChild(commandItem);
 
-		if (i != order.length - 1) {
+		if (i != roles.length - 1) {
 			commands.appendChild(document.createTextNode(", "));
 		}
 	}
@@ -70,12 +71,17 @@ function formatShowItem(show, stats) {
 }
 
 socket.on("init-stats", function(val) {
+	allStats = val;
 	let showList = document.getElementById("show-list");
 	while (showList.childNodes.length > 0) {
 		showList.removeChild(showList.firstChild);
 	}
 
 	for (const [show, show_stats] of Object.entries(val)) {
+		if (show == "roles") {
+			continue;
+		}
+
 		let showItem = formatShowItem(show, show_stats);
 		showList.appendChild(showItem);
 	}
@@ -84,6 +90,7 @@ socket.on("init-stats", function(val) {
 
 socket.on("update-stats", function(val) {
 	console.log("Updating");
+	allStats[val.show][val.command] = val.value;
 	let commandItem = document.getElementById(val.show + "-" + val.command);
 	if (val.command == "episode" || val.command == "message") {
 		commandItem.textContent = val.value;
@@ -94,12 +101,17 @@ socket.on("update-stats", function(val) {
 			let message = document.getElementById(val.show + "-message");
 			message.style.display = val.value == "" ? "none" : "inline";
 		}
+	} else if (val.command == "roles") {
+		let currentNode = document.getElementById(val.show + "-container");
+		currentNode.parentNode.replaceChild(
+			formatShowItem(val.show, allStats[val.show]), currentNode);
 	} else {
 		formatStat(commandItem, val.command, val.value);
 	}
 });
 
 socket.on("add-show", function(val) {
+	allStats[val.show] = val.stats;
 	let showList = document.getElementById("show-list");
 	let prevShowItem = document.getElementById(val.show + "-container");
 	if (prevShowItem !== null) {
@@ -117,6 +129,7 @@ socket.on("add-show", function(val) {
 });
 
 socket.on("remove-show", function(show) {
+	delete allStats[show];
 	let showItem = document.getElementById(show + "-container");
 	showItem.parentNode.removeChild(showItem);
 });
