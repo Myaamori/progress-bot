@@ -44,6 +44,11 @@ if (config.enableDiscord) {
 	discordClient.initDiscord();
 }
 
+if (config.enableRss) {
+	let rssClient = require("./rss.js");
+	rssClient.initRSS();
+}
+
 console.log("\nINIT COMPLETE\n".bold.magenta);
 
 console.log(colors.grey("%s\n"), JSON.stringify(stats));
