@@ -13,7 +13,7 @@ app.use(express.static("assets")); //deliver content in the 'assets' folder
 let http = require("http")
 	.Server(app);
 
-import {getStats, initIo, lastUpdated, validCommands, file } from "./common.js";
+import {getStats, saveStats, initIo, lastUpdated, validCommands, file } from "./common.js";
 let stats = getStats();
 
 
@@ -92,8 +92,7 @@ function exitHandler({cleanup, exit}, err) {
 	if (cleanup) console.log("clean".red);
 	if (err) console.log(err.stack);
 
-	jsonFile.writeFileSync(file, stats);
-	console.log("Saving stats to disk".yellow);
+	saveStats();
 
 	if (exit) process.exit();
 }

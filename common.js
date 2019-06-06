@@ -44,8 +44,15 @@ export function getStats() {
 		if (!("roles" in stats)) {
 			stats.roles = defaultRoles;
 		}
+
+		setInterval(saveStats, 1000*60*10); // every 10 minutes
 	}
 	return stats;
+}
+
+export function saveStats() {
+	jsonFile.writeFileSync(file, stats);
+	console.log("Saving stats to disk".yellow);
 }
 
 export var file = `${__dirname}/data.json`;
