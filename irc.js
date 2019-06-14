@@ -41,19 +41,18 @@ function init() {
 		})
 	}
 
-	let lastUpdated = exports.lastUpdated;
-
-	const listener = `message${config.listenChannel[0]}`;
-
 	console.log("Adding listener for trigger...".green);
 	/**
 	 * Below block is for listening to a specific trigger word.
 	 */
-	bot.addListener(listener, (from, text, message) => {
+	bot.addListener('message', (from, to, text, message) => {
 		//extract the first n characters from each message and check if it matches the trigger word
-		if (triggerMatch(text)) {
+		if (config.listenChannel.includes(to) && triggerMatch(text)) {
 			//if we have a matching trigger, extract the command the value
-			runCommand(text);
+			runCommand(text, {
+				service: "irc",
+				reply: m => bot.say(to, ircify(m))
+			});
 		}
 	});
 
@@ -65,8 +64,13 @@ function init() {
 
 export function ircSay(message) {
 	if (message){
+		message = ircify(message);
 		for (let i = 0; i < config.notifyChannel.length; i++) {
 			bot.say(config.notifyChannel[i], message);
 		}
 	}
+}
+
+function ircify(message) {
+	return message.replace(/<\/?b>/g, "\x02").replace(/<\/?i>/g, "\x1D").replace(/<\/?s>/g, "\x1E");
 }

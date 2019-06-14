@@ -19,7 +19,10 @@ export function initDiscord() {
 				config.discordListenCategories.includes(msg.channel.parent.id));
 
 		if (triggerMatch(msg.content) && authenticated) {
-			runCommand(msg.content);
+			runCommand(msg.content, {
+				service: "discord",
+				reply: m => msg.channel.send(discordify(m))
+			});
 		}
 	});
 
@@ -31,8 +34,13 @@ export function initDiscord() {
 }
 
 export function discordSay(message) {
+	message = discordify(message);
 	config.discordNotifyChannels.forEach( async value => {
 		let channel = client.channels.get(value);
 		await channel.send(message);
 	});
+}
+
+function discordify(message) {
+	return message.replace(/<\/?b>/g, "**").replace(/<\/?i>/g, "*").replace(/<\/?s>/g, "~~");
 }
