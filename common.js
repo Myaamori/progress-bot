@@ -132,11 +132,15 @@ function getEpisodeStatus(status) {
 	return `<b>${status.title}</b> | Episode ${status.episode} | ${roleStatus}`;
 }
 
-function setStat(show, command, value, notifyChange = true) {
+function setStat(show, command, value, notifyChange = true, episode) {
+	if (episode === undefined) {
+		episode = stats.shows[show].episode;
+	}
+
 	if (topLevelRoles.includes(command)) {
 		stats.shows[show][command] = value;
 	} else {
-		stats.shows[show].stats[stats.shows[show].episode][command] = value;
+		stats.shows[show].stats[episode][command] = value;
 	}
 
 	if (notifyChange) {
@@ -150,19 +154,23 @@ function setStat(show, command, value, notifyChange = true) {
 	stats.shows[show].dateUpdated = Date.now();
 }
 
-function resetValues(show, notifyChange) {
+function resetValues(show, notifyChange, episode) {
 	let roles = stats.shows[show].hasOwnProperty("roles")
 		? stats.shows[show].roles
 		: Object.keys(defaultRoles);
 
-	if (!(stats.shows[show].episode in stats.shows[show].stats)) {
-		stats.shows[show].stats[stats.shows[show].episode] = {};
+	if (episode === undefined) {
+		episode = stats.shows[show].episode;
 	}
 
-	let episodeStats = stats.shows[show].stats[stats.shows[show].episode];
+	if (!(episode in stats.shows[show].stats)) {
+		stats.shows[show].stats[episode] = {};
+	}
+
+	let episodeStats = stats.shows[show].stats[episode];
 	for (let role of roles) {
 		let newValue = role in episodeStats ? episodeStats[role] : 0;
-		setStat(show, role, newValue, notifyChange);
+		setStat(show, role, newValue, notifyChange, episode);
 	}
 
 	// episode must be reset before calling this bc reasons
@@ -174,7 +182,7 @@ function resetValues(show, notifyChange) {
 		if (!topLevelRoles.includes(role) && role in episodeStats) {
 			defaultValue = episodeStats[role];
 		}
-		setStat(show, role, defaultValue, notifyChange);
+		setStat(show, role, defaultValue, notifyChange, episode);
 	}
 }
 
@@ -192,7 +200,10 @@ export function runCommand(text, source) {
 	if (stats.shows.hasOwnProperty(show)) {
 		if (command == "roles") {
 			setStat(show, command, value.split(" "));
-			stats.shows[show].roles.forEach(x => setStat(show, x, 0));
+
+			for (let episode of Object.keys(stats.shows[show].stats)) {
+				resetValues(show, episode == stats.shows[show].episode, episode);
+			}
 			return;
 		}
 
