@@ -71,7 +71,6 @@ io.on("connection", socket => {
 	for (let [show, showStats] of Object.entries(stats.shows)) {
 		flattenedStats[show] = flattenStats(showStats);
 	}
-	console.log(flattenedStats);
 
 	socket.emit("init-stats", flattenedStats);
 	io.emit("update-users", io.engine.clientsCount);

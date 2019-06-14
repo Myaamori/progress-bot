@@ -159,14 +159,20 @@ function resetValues(show, notifyChange) {
 		stats.shows[show].stats[stats.shows[show].episode] = {};
 	}
 
+	let episodeStats = stats.shows[show].stats[stats.shows[show].episode];
 	for (let role of roles) {
-		setStat(show, role, 0, notifyChange);
+		let newValue = role in episodeStats ? episodeStats[role] : 0;
+		setStat(show, role, newValue, notifyChange);
 	}
 
 	// episode must be reset before calling this bc reasons
 	for (let [role, defaultValue] of Object.entries(reservedRoles)) {
 		if (role == "episode") {
 			continue;
+		}
+
+		if (!topLevelRoles.includes(role) && role in episodeStats) {
+			defaultValue = episodeStats[role];
 		}
 		setStat(show, role, defaultValue, notifyChange);
 	}
