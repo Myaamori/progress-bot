@@ -24,7 +24,7 @@ export var defaultRoles = {
 export var defaultOrder = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
 // non-customizable roles + default values
 export var reservedRoles = {episode: "0/?", message: ""};
-export var topLevelRoles = ["episode", "dateCreated", "dateUpdated"];
+export var topLevelRoles = ["episode", "title", "roles", "dateCreated", "dateUpdated"];
 export var globalCommands = ["add-show", "remove-show", "add-role", "remove-role", "status"];
 
 export function getStats() {
@@ -155,6 +155,10 @@ function resetValues(show, notifyChange) {
 		? stats.shows[show].roles
 		: Object.keys(defaultRoles);
 
+	if (!(stats.shows[show].episode in stats.shows[show].stats)) {
+		stats.shows[show].stats[stats.shows[show].episode] = {};
+	}
+
 	for (let role of roles) {
 		setStat(show, role, 0, notifyChange);
 	}
@@ -166,6 +170,12 @@ function resetValues(show, notifyChange) {
 		}
 		setStat(show, role, defaultValue, notifyChange);
 	}
+}
+
+export function flattenStats(showStats) {
+	let flattened = {...showStats, ...showStats.stats[showStats.episode]};
+	delete flattened.stats;
+	return flattened;
 }
 
 export function runCommand(text, source) {
@@ -213,12 +223,12 @@ export function runCommand(text, source) {
 		[command, show] = [show, command];
 
 		if (command == "add-show") {
-			stats.shows[show] = {title: value, dateCreated: Date.now()};
+			stats.shows[show] = {title: value, stats: {}, dateCreated: Date.now()};
 			setStat(show, "episode", reservedRoles.episode, false);
 			resetValues(show, false);
 			ioInstance.emit("add-show", {
 				"show": show,
-				"stats": stats.shows[show]
+				"stats": flattenStats(stats.shows[show])
 			});
 		} else if (command == "remove-show") {
 			delete stats.shows[show];

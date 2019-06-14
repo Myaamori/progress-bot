@@ -13,7 +13,7 @@ app.use(express.static("assets")); //deliver content in the 'assets' folder
 let http = require("http")
 	.Server(app);
 
-import {getStats, saveStats, initIo, lastUpdated, validCommands, file } from "./common.js";
+import {getStats, saveStats, initIo, lastUpdated, validCommands, file, flattenStats} from "./common.js";
 let stats = getStats();
 
 
@@ -66,7 +66,14 @@ io.on("connection", socket => {
 	console.log("Socket connection established. ID: ".grey, socket.id);
 
 	socket.emit("date-update", lastUpdated);
-	socket.emit("init-stats", stats);
+
+	let flattenedStats = {};
+	for (let [show, showStats] of Object.entries(stats.shows)) {
+		flattenedStats[show] = flattenStats(showStats);
+	}
+	console.log(flattenedStats);
+
+	socket.emit("init-stats", flattenedStats);
 	io.emit("update-users", io.engine.clientsCount);
 
 	socket.on("disconnect", socket => {
