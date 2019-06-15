@@ -1,4 +1,5 @@
 import jsonFile from "jsonfile";
+import yargs from "yargs";
 import config from "./config.js";
 import { ircSay } from "./irc.js";
 import { discordSay } from "./discord.js";
@@ -132,10 +133,16 @@ function getEpisodeStatus(status) {
 	return `<b>${status.title}</b> | Episode ${status.episode} | ${roleStatus}`;
 }
 
-function setStat(show, command, value, notifyChange = true, episode) {
+function getEpisode(show, episode) {
 	if (episode === undefined) {
-		episode = stats.shows[show].episode;
+		return stats.shows[show].episode;
+	} else {
+		return episode;
 	}
+}
+
+function setStat(show, command, value, notifyChange = true, episode) {
+	episode = getEpisode(show, episode);
 
 	if (topLevelRoles.includes(command)) {
 		stats.shows[show][command] = value;
@@ -159,9 +166,7 @@ function resetValues(show, notifyChange, episode) {
 		? stats.shows[show].roles
 		: Object.keys(defaultRoles);
 
-	if (episode === undefined) {
-		episode = stats.shows[show].episode;
-	}
+	episode = getEpisode(show, episode);
 
 	if (!(episode in stats.shows[show].stats)) {
 		stats.shows[show].stats[episode] = {};
@@ -215,26 +220,38 @@ export function runCommand(text, source) {
 			return;
 		}
 
+		let notify = true;
 		console.log("Valid command: ".yellow, command, value);
 		if (command === "episode") {
 			console.log("Resetting everything".yellow);
 			setStat(show, "episode", value);
 			resetValues(show, true);
 		} else {
-			setStat(show, command, value);
+			const args = yargs.parse(value);
+			const episode = getEpisode(show, args.episode);
+			value = args._.join(" ");
+			notify = episode === getEpisode(show);
+
+			if (!(episode in stats.shows[show].stats)) {
+				resetValues(show, false, episode);
+			}
+
+			setStat(show, command, value, notify, args.episode);
 
 			// clear message if other status set
 			if (command !== "message") {
-				setStat(show, "message", "");
+				setStat(show, "message", "", notify, args.episode);
 			}
 		}
 
-		let replyMessage = getToSay(show, command);
-		if (config.enableDiscord && replyMessage) discordSay(replyMessage);
-		if (config.enableIrc && replyMessage) ircSay(replyMessage);
+		if (notify) {
+			let replyMessage = getToSay(show, command);
+			if (config.enableDiscord && replyMessage) discordSay(replyMessage);
+			if (config.enableIrc && replyMessage) ircSay(replyMessage);
 
-		lastUpdated = new Date().toUTCString();
-		ioInstance.emit("date-update", lastUpdated);
+			lastUpdated = new Date().toUTCString();
+			ioInstance.emit("date-update", lastUpdated);
+		}
 	} else if (globalCommands.includes(show) && !globalCommands.includes(command)) {
 		// interpret first value as command, second as the show to add/remove
 		[command, show] = [show, command];

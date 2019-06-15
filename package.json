@@ -11,6 +11,7 @@
     "password-prompt": "^1.1.2",
     "socket.io": "^2.2.0",
     "rss-parser": "^3.7.0",
+    "yargs": "^13.2.4",
     "@babel/runtime": "^7.4.5"
   },
   "devDependencies": {
