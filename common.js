@@ -298,7 +298,10 @@ export function runCommand(text, source) {
 			ioInstance.emit("remove-role", show);
 		} else if (command == "status" && show in stats.shows) {
 			let episode = value.length != '' ? value : stats.shows[show].episode;
-			source.reply(getEpisodeStatus(status, episode));
+			let status = getEpisodeStatus(show, episode);
+			if (status) {
+				source.reply(getEpisodeStatus(show, episode));
+			}
 		} else if (command == "track" && show in stats.shows && source.service == "discord") {
 			discordClient.addDiscordTracker(show, source);
 		} else if (command == "track-stop" && show in stats.shows && source.service == "discord") {
