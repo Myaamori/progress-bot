@@ -132,7 +132,7 @@ export function getEpisodeStatus(show, episode) {
 
 	let status = {
 		title: stats.shows[show].title,
-		episode: stats.shows[show].episode,
+		episode: episode,
 		stats: new Map(roles.map(x => [x, episodeStats[x]]))
 	}
 
