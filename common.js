@@ -1,11 +1,10 @@
 import jsonFile from "jsonfile";
 import yargs from "yargs";
 import config from "./config.js";
-import { ircSay } from "./irc.js";
-import { discordSay, addDiscordTracker, clearDiscordTracker, updateDiscordTrackers } from "./discord.js";
+import * as ircClient from "./irc.js";
+import * as discordClient from "./discord.js";
 
 let ioInstance;
-let stats;
 
 export function initIo(http) {
 	ioInstance = require("socket.io")(http);
@@ -30,56 +29,57 @@ export var globalCommands = [
 	"add-show", "remove-show", "add-role", "remove-role", "status", "track", "track-stop"
 ];
 
-export function getStats() {
-	if (!stats){
-		console.log("Reading existing data...".green);
-		const file = `${__dirname}/data.json`;
-		try {
-			stats = jsonFile.readFileSync(file);
+function getStats() {
+	console.log("Reading existing data...".green);
+	const file = `${__dirname}/data.json`;
+	var stats;
+	try {
+		stats = jsonFile.readFileSync(file);
+	}
+	catch (err) {
+		if (err.code === "ENOENT") {
+			//If no data file was found, start with dummy data
+			console.log("No default data file found".yellow);
+			console.log("Creating dummy data".yellow);
+			stats = {};
 		}
-		catch (err) {
-			if (err.code === "ENOENT") {
-				//If no data file was found, start with dummy data
-				console.log("No default data file found".yellow);
-				console.log("Creating dummy data".yellow);
-				stats = {};
+	}
+
+	if (!("roles" in stats)) {
+		stats.roles = defaultRoles;
+	}
+
+	if (!("shows" in stats)) {
+		stats.shows = {};
+
+		for (const [show, show_stats] of Object.entries(stats)) {
+			if (show == "roles" || show == "shows") {
+				continue;
 			}
-		}
 
-		if (!("roles" in stats)) {
-			stats.roles = defaultRoles;
-		}
-
-		if (!("shows" in stats)) {
-			stats.shows = {};
-
-			for (const [show, show_stats] of Object.entries(stats)) {
-				if (show == "roles" || show == "shows") {
+			show_stats.stats = {}
+			show_stats.stats[show_stats.episode] = {}
+			for (const [role, value] of Object.entries(show_stats)) {
+				if (role == "episode" || role == "stats" || role == "roles" || role == "title") {
 					continue;
 				}
 
-				show_stats.stats = {}
-				show_stats.stats[show_stats.episode] = {}
-				for (const [role, value] of Object.entries(show_stats)) {
-					if (role == "episode" || role == "stats" || role == "roles" || role == "title") {
-						continue;
-					}
-
-					show_stats.stats[show_stats.episode][role] = value;
-					delete show_stats[role];
-				}
-
-				show_stats.dateCreated = Date.now();
-				show_stats.dateUpdated = Date.now();
-				stats.shows[show] = show_stats;
-				delete stats[show];
+				show_stats.stats[show_stats.episode][role] = value;
+				delete show_stats[role];
 			}
-		}
 
-		setInterval(saveStats, 1000*60*10); // every 10 minutes
+			show_stats.dateCreated = Date.now();
+			show_stats.dateUpdated = Date.now();
+			stats.shows[show] = show_stats;
+			delete stats[show];
+		}
 	}
+
 	return stats;
 }
+
+export var stats = getStats();
+setInterval(saveStats, 1000*60*10); // every 10 minutes
 
 export function saveStats() {
 	jsonFile.writeFileSync(file, stats);
@@ -263,14 +263,14 @@ export function runCommand(text, source) {
 
 			if (notify) {
 				let replyMessage = getToSay(show, command);
-				if (config.enableDiscord && replyMessage) discordSay(replyMessage);
-				if (config.enableIrc && replyMessage) ircSay(replyMessage);
+				if (config.enableDiscord && replyMessage) discordClient.discordSay(replyMessage);
+				if (config.enableIrc && replyMessage) ircClient.ircSay(replyMessage);
 
 				lastUpdated = new Date().toUTCString();
 				ioInstance.emit("date-update", lastUpdated);
 			}
 		} finally {
-			updateDiscordTrackers(show);
+			discordClient.updateDiscordTrackers(show);
 		}
 	} else if (globalCommands.includes(show) && !globalCommands.includes(command)) {
 		// interpret first value as command, second as the show to add/remove
@@ -300,9 +300,9 @@ export function runCommand(text, source) {
 			let episode = value.length != '' ? value : stats.shows[show].episode;
 			source.reply(getEpisodeStatus(status, episode));
 		} else if (command == "track" && show in stats.shows && source.service == "discord") {
-			addDiscordTracker(show, source);
+			discordClient.addDiscordTracker(show, source);
 		} else if (command == "track-stop" && show in stats.shows && source.service == "discord") {
-			clearDiscordTracker(show, source);
+			discordClient.clearDiscordTracker(show, source);
 		}
 	}
 }

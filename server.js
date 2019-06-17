@@ -13,8 +13,7 @@ app.use(express.static("assets")); //deliver content in the 'assets' folder
 let http = require("http")
 	.Server(app);
 
-import {getStats, saveStats, initIo, lastUpdated, validCommands, file, flattenStats} from "./common.js";
-let stats = getStats();
+import * as common from "./common.js";
 
 
 //configure in HTTPS mode
@@ -29,7 +28,7 @@ if (config.httpsMode) {
 
 console.log("Initializing Socket.io stuff...".green);
 
-const io = initIo(http); // socket.io for realtime stuff
+const io = common.initIo(http); // socket.io for realtime stuff
 
 
 import jsonFile from "jsonfile"; //because i'm lazy
@@ -51,7 +50,7 @@ if (config.enableRss) {
 
 console.log("\nINIT COMPLETE\n".bold.magenta);
 
-console.log(colors.grey("%s\n"), JSON.stringify(stats));
+console.log(colors.grey("%s\n"), JSON.stringify(common.stats));
 
 
 app.get("/", (req, res) => {
@@ -65,11 +64,11 @@ app.get("/progressbar.min.js", (req, res) => {
 io.on("connection", socket => {
 	console.log("Socket connection established. ID: ".grey, socket.id);
 
-	socket.emit("date-update", lastUpdated);
+	socket.emit("date-update", common.lastUpdated);
 
 	let flattenedStats = {};
-	for (let [show, showStats] of Object.entries(stats.shows)) {
-		flattenedStats[show] = flattenStats(showStats);
+	for (let [show, showStats] of Object.entries(common.stats.shows)) {
+		flattenedStats[show] = common.flattenStats(showStats);
 	}
 
 	socket.emit("init-stats", flattenedStats);
@@ -98,7 +97,7 @@ function exitHandler({cleanup, exit}, err) {
 	if (cleanup) console.log("clean".red);
 	if (err) console.log(err.stack);
 
-	saveStats();
+	common.saveStats();
 
 	if (exit) process.exit();
 }

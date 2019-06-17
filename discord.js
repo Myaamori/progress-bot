@@ -4,7 +4,7 @@ import colors from "colors";
 import Discord from "discord.js";
 const client = new Discord.Client();
 import config from "./config.js";
-import { triggerMatch, runCommand, getEpisodeStatus, getStats } from "./common.js";
+import * as common from "./common.js";
 
 export function initDiscord() {
 	client.on("ready", () => {
@@ -18,8 +18,8 @@ export function initDiscord() {
 			(msg.channel.parent &&
 				config.discordListenCategories.includes(msg.channel.parent.id));
 
-		if (triggerMatch(msg.content) && authenticated) {
-			runCommand(msg.content, {
+		if (common.triggerMatch(msg.content) && authenticated) {
+			common.runCommand(msg.content, {
 				service: "discord",
 				reply: m => msg.channel.send(discordify(m)),
 				message: msg
@@ -46,30 +46,28 @@ function discordify(message) {
 	return message.replace(/<\/?b>/g, "**").replace(/<\/?i>/g, "*").replace(/<\/?s>/g, "~~");
 }
 
-let stats = getStats();
-
 export function addDiscordTracker(show, source) {
-	if (!("discordTrackers" in stats.shows[show])) {
-		stats.shows[show].discordTrackers = {};
+	if (!("discordTrackers" in common.stats.shows[show])) {
+		common.stats.shows[show].discordTrackers = {};
 	}
 
-	source.reply(getEpisodeStatus(show))
+	source.reply(common.getEpisodeStatus(show))
 		.then(msg => {
-			stats.shows[show].discordTrackers[msg.channel.id] = msg.id;
+			common.stats.shows[show].discordTrackers[msg.channel.id] = msg.id;
 		}).catch(error => source.reply("Failed to send message."));
 }
 
 export function clearDiscordTracker(show, source) {
-	if ("discordTrackers" in stats.shows[show]) {
-		delete stats.shows[show].discordTrackers[source.message.channel.id];
+	if ("discordTrackers" in common.stats.shows[show]) {
+		delete common.stats.shows[show].discordTrackers[source.message.channel.id];
 	}
 }
 
 export function updateDiscordTrackers(show) {
-	let status = discordify(getEpisodeStatus(show));
+	let status = discordify(common.getEpisodeStatus(show));
 
-	if ("discordTrackers" in stats.shows[show]) {
-		for (const [channelId, msgId] of Object.entries(stats.shows[show].discordTrackers)) {
+	if ("discordTrackers" in common.stats.shows[show]) {
+		for (const [channelId, msgId] of Object.entries(common.stats.shows[show].discordTrackers)) {
 			let channel = client.channels.get(channelId);
 			if (channel !== undefined) {
 				channel.fetchMessage(msgId).then(msg => msg.edit(status));

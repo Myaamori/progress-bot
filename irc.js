@@ -1,6 +1,6 @@
 import irc from "irc-upd";
 import config from "./config.js";
-import { triggerMatch, runCommand } from "./common.js";
+import * as common from "./common.js";
 
 let bot;
 
@@ -47,9 +47,9 @@ function init() {
 	 */
 	bot.addListener('message', (from, to, text, message) => {
 		//extract the first n characters from each message and check if it matches the trigger word
-		if (config.listenChannel.includes(to) && triggerMatch(text)) {
+		if (config.listenChannel.includes(to) && common.triggerMatch(text)) {
 			//if we have a matching trigger, extract the command the value
-			runCommand(text, {
+			common.runCommand(text, {
 				service: "irc",
 				reply: m => bot.say(to, ircify(m))
 			});
