@@ -80,15 +80,17 @@ io.on("connection", socket => {
 });
 
 
-if (config.httpsMode) {
-	http.listen(8443, () => {
-		console.log("Listening on port %s in HTTPS mode".bold.yellow, config.httpsPort);
-	});
-}
-else {
-	http.listen(config.port, () => {
-		console.log("Listening on port %s in HTTP mode".bold.yellow, config.port);
-	});
+if (config.enableHttp) {
+	if (config.httpsMode) {
+		http.listen(8443, () => {
+			console.log("Listening on port %s in HTTPS mode".bold.yellow, config.httpsPort);
+		});
+	}
+	else {
+		http.listen(config.port, () => {
+			console.log("Listening on port %s in HTTP mode".bold.yellow, config.port);
+		});
+	}
 }
 //Below stuff is all for clean exits and for uncaught exception handling
 process.stdin.resume(); //so the program will not close instantly

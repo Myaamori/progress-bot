@@ -17,6 +17,7 @@ const config = {
 	notifyChannel: ["#yourchannel"],
 	server: "irc.server.here",
 	botName: "progressBot",
+	enableHttp: true, // enable the http(s) web server
 	port: 80,
 	httpsMode: false, //enables https only mode
 	httpsPort: 8443,
