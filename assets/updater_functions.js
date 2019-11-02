@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
 
+const KEEP_CONNECTION_ALIVE = true;
+
 const port = document.getElementById("show-list").dataset.port || window.location.port;
 var socket = io(window.location.protocol + "//" + window.location.hostname + ":" + port);
 
@@ -84,6 +86,10 @@ socket.on("init-stats", function(val) {
 
 		let showItem = formatShowItem(show, show_stats);
 		showList.appendChild(showItem);
+	}
+
+	if (!KEEP_CONNECTION_ALIVE) {
+		socket.close();
 	}
 });
 
