@@ -7,6 +7,7 @@ var socket = io(window.location.protocol + "//" + window.location.hostname + ":"
 
 console.log("Starting");
 var defaultRoles = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
+var roleDescriptions = null;
 var allStats = {};
 
 function formatStat(node, command, value) {
@@ -52,6 +53,12 @@ function formatShowItem(show, stats) {
 		let commandItem = document.createElement("span");
 		formatStat(commandItem, command, stats[command]);
 		commandItem.id = show + "-" + command;
+
+		if (command in roleDescriptions) {
+			commandItem.title = roleDescriptions[command];
+			commandItem.style.cursor = "help";
+		}
+
 		commands.appendChild(commandItem);
 
 		if (i != roles.length - 1) {
@@ -73,13 +80,15 @@ function formatShowItem(show, stats) {
 }
 
 socket.on("init-stats", function(val) {
-	allStats = val;
+	allStats = val.shows;
+	roleDescriptions = val.roles;
+
 	let showList = document.getElementById("show-list");
 	while (showList.childNodes.length > 0) {
 		showList.removeChild(showList.firstChild);
 	}
 
-	for (const [show, show_stats] of Object.entries(val)) {
+	for (const [show, show_stats] of Object.entries(val.shows)) {
 		if (show == "roles") {
 			continue;
 		}

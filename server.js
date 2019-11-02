@@ -66,10 +66,11 @@ io.on("connection", socket => {
 
 	socket.emit("date-update", common.lastUpdated);
 
-	let flattenedStats = {};
+	let flattenedStats = {shows: {}};
 	for (let [show, showStats] of Object.entries(common.stats.shows)) {
-		flattenedStats[show] = common.flattenStats(showStats);
+		flattenedStats.shows[show] = common.flattenStats(showStats);
 	}
+	flattenedStats.roles = common.stats.roles;
 
 	socket.emit("init-stats", flattenedStats);
 	io.emit("update-users", io.engine.clientsCount);
