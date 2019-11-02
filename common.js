@@ -1,5 +1,5 @@
 import jsonFile from "jsonfile";
-import yargs from "yargs";
+import Yargs from "yargs/yargs";
 import config from "./config.js";
 import * as ircClient from "./irc.js";
 import * as discordClient from "./discord.js";
@@ -23,7 +23,7 @@ export var defaultRoles = {
 };
 export var defaultOrder = ["tl", "tlc", "time", "edit", "ts", "encode", "qc"];
 // non-customizable roles + default values
-export var reservedRoles = {episode: "0/?", message: ""};
+export var reservedRoles = {message: ""};
 export var topLevelRoles = ["episode", "title", "roles", "dateCreated", "dateUpdated"];
 export var globalCommands = [
 	"add-show", "remove-show", "add-role", "remove-role", "status", "track", "track-stop"
@@ -107,11 +107,11 @@ function getProgress(value) {
 }
 
 export function getToSay(show, command) {
-	if (command === "episode" && config.sendEpisodeMessage) {
+	if (command === "episode") {
 		return `Currently working on <b>${stats.shows[show].title}</b> ` +
 			`episode ${stats.shows[show].episode}`;
 	}
-	else if (command !== "message" && command !== "episode") {
+	else if (command !== "message") {
 		const show_stats = stats.shows[show].stats[stats.shows[show].episode];
 		return `<b>${stats.shows[show].title}</b> | Episode ${stats.shows[show].episode} | ` +
 			`${capitalizeFirst(command)} progress @ ${getProgress(show_stats[command])}`;
@@ -150,23 +150,14 @@ export function getEpisodeStatus(show, episode) {
 }
 
 function getEpisode(show, episode) {
-	if (episode === undefined) {
-		return stats.shows[show].episode;
-	} else {
-		return episode;
-	}
+	return episode === undefined ? stats.shows[show].episode : episode;
 }
 
-function setStat(show, command, value, notifyChange = true, episode) {
+function setStat(show, command, value, episode) {
 	episode = getEpisode(show, episode);
+	stats.shows[show].stats[episode][command] = value;
 
-	if (topLevelRoles.includes(command)) {
-		stats.shows[show][command] = value;
-	} else {
-		stats.shows[show].stats[episode][command] = value;
-	}
-
-	if (notifyChange) {
+	if (episode === getEpisode(show)) {
 		ioInstance.emit("update-stats", {
 			"show": show,
 			"command": command,
@@ -177,7 +168,7 @@ function setStat(show, command, value, notifyChange = true, episode) {
 	stats.shows[show].dateUpdated = Date.now();
 }
 
-function resetValues(show, notifyChange, episode) {
+function resetValues(show, episode) {
 	let roles = stats.shows[show].hasOwnProperty("roles")
 		? stats.shows[show].roles
 		: Object.keys(defaultRoles);
@@ -191,19 +182,13 @@ function resetValues(show, notifyChange, episode) {
 	let episodeStats = stats.shows[show].stats[episode];
 	for (let role of roles) {
 		let newValue = role in episodeStats ? episodeStats[role] : 0;
-		setStat(show, role, newValue, notifyChange, episode);
+		setStat(show, role, newValue, episode);
 	}
 
 	// episode must be reset before calling this bc reasons
 	for (let [role, defaultValue] of Object.entries(reservedRoles)) {
-		if (role == "episode") {
-			continue;
-		}
-
-		if (!topLevelRoles.includes(role) && role in episodeStats) {
-			defaultValue = episodeStats[role];
-		}
-		setStat(show, role, defaultValue, notifyChange, episode);
+		let newValue = role in episodeStats ? episodeStats[role] : defaultValue;
+		setStat(show, role, newValue, episode);
 	}
 }
 
@@ -213,99 +198,214 @@ export function flattenStats(showStats) {
 	return flattened;
 }
 
+function notify(show, command) {
+	let replyMessage = getToSay(show, command);
+	if (config.enableDiscord && replyMessage) discordClient.discordSay(replyMessage);
+	if (config.enableIrc && replyMessage) ircClient.ircSay(replyMessage);
+
+	lastUpdated = new Date().toUTCString();
+	ioInstance.emit("date-update", lastUpdated);
+}
+
+class CommandError extends Error {}
+
+function command(f) {
+	return (...args) => {
+		if (args.length != f.length) {
+			throw new CommandError("Wrong length");
+		} else {
+			f(...args);
+		}
+	};
+}
+
+function vCommand(f) {
+	return (...args) => {
+		if (args.length <= f.length) {
+			throw new CommandError("Wrong length");
+		} else {
+			f(...args);
+		}
+	}
+}
+
+function yargsCommand(spec, builder, f) {
+	return (...args) => {
+		Yargs()
+			.command(spec, '', builder, f)
+			.strict()
+			.fail((msg, err, yargs) => {
+				throw new CommandError(msg)
+			})
+			.parse(args);
+	}
+}
+
+function parse(args, spec) {
+	if (args.length == 0 || args[0] == "*") {
+		throw new CommandError("Missing command");
+	} else {
+		if (args[0] in spec) {
+			spec[args[0]](...args.slice(1));
+		} else if (spec["*"]) {
+			spec["*"](...args)
+		} else {
+			throw new CommandError("No matching command")
+		}
+	}
+}
+
 export function runCommand(text, source) {
 	const message = getMsg(text);
-	let [show, command, ...value] = message.split(" ");
-	value = value.join(" ");
 
-	if (stats.shows.hasOwnProperty(show)) {
-		try {
-			if (command == "roles") {
-				setStat(show, command, value.split(" "));
-
-				for (let episode of Object.keys(stats.shows[show].stats)) {
-					resetValues(show, episode == stats.shows[show].episode, episode);
-				}
-				return;
-			}
-
-			if (!reservedRoles.hasOwnProperty(command) &&
-					!(stats.shows[show].hasOwnProperty("roles") &&
-					stats.shows[show].roles.includes(command)) &&
-					!(!stats.shows[show].hasOwnProperty("roles") &&
-					stats.roles.hasOwnProperty(command))) {
-				return;
-			}
-
-			let notify = true;
-			console.log("Valid command: ".yellow, command, value);
-			if (command === "episode") {
-				console.log("Resetting everything".yellow);
-				setStat(show, "episode", value);
-				resetValues(show, true);
-			} else {
-				const args = yargs.parse(value);
-				const episode = getEpisode(show, args.episode);
-				value = args._.join(" ");
-				notify = episode === getEpisode(show);
-
-				if (!(episode in stats.shows[show].stats)) {
-					resetValues(show, false, episode);
-				}
-
-				setStat(show, command, value, notify, args.episode);
-
-				// clear message if other status set
-				if (command !== "message") {
-					setStat(show, "message", "", notify, args.episode);
-				}
-			}
-
-			if (notify) {
-				let replyMessage = getToSay(show, command);
-				if (config.enableDiscord && replyMessage) discordClient.discordSay(replyMessage);
-				if (config.enableIrc && replyMessage) ircClient.ircSay(replyMessage);
-
-				lastUpdated = new Date().toUTCString();
-				ioInstance.emit("date-update", lastUpdated);
-			}
-		} finally {
-			discordClient.updateDiscordTrackers(show);
+	function errorHandler(err, argv, output) {
+		if (err) {
+			source.reply("Error: " + err.message);
 		}
-	} else if (globalCommands.includes(show) && !globalCommands.includes(command)) {
-		// interpret first value as command, second as the show to add/remove
-		[command, show] = [show, command];
+	}
 
-		if (command == "add-show") {
-			stats.shows[show] = {title: value, stats: {}, dateCreated: Date.now()};
-			setStat(show, "episode", reservedRoles.episode, false);
-			resetValues(show, false);
-			ioInstance.emit("add-show", {
-				"show": show,
-				"stats": flattenStats(stats.shows[show])
-			});
-		} else if (command == "remove-show") {
-			delete stats.shows[show];
-			ioInstance.emit("remove-show", show);
-		} else if (command == "add-role") {
-			stats.roles[show] = value;
-			ioInstance.emit("add-role", {
-				"role": show,
-				"value": value
-			});
-		} else if (command == "remove-role") {
-			delete stats.roles[show];
-			ioInstance.emit("remove-role", show);
-		} else if (command == "status" && show in stats.shows) {
-			let episode = value.length != '' ? value : stats.shows[show].episode;
-			let status = getEpisodeStatus(show, episode);
-			if (status) {
-				source.reply(getEpisodeStatus(show, episode));
-			}
-		} else if (command == "track" && show in stats.shows && source.service == "discord") {
-			discordClient.addDiscordTracker(show, source);
-		} else if (command == "track-stop" && show in stats.shows && source.service == "discord") {
-			discordClient.clearDiscordTracker(show, source);
+	const args = message.trim().split(/\s+/)
+
+	try {
+		parse(args, {
+			"*": (show, ...tail) => {
+				if (!(show in stats.shows)) {
+					throw new CommandError(`No such show: ${show}`);
+				}
+
+				parse(tail, {
+					"episode": vCommand((...description) => {
+						let episode = description.join(" ");
+						stats.shows[show].episode = episode;
+						ioInstance.emit("update-stats", {
+							"show": show,
+							"command": "episode",
+							"value": episode
+						});
+
+						resetValues(show);
+
+						if (config.sendEpisodeMessage) {
+							notify(show, "episode");
+						}
+					}),
+					"roles": vCommand((...roles) => {
+						stats.shows[show].roles = roles;
+						ioInstance.emit("update-stats", {
+							"show": show,
+							"command": "roles",
+							"value": roles
+						});
+
+						for (let episode of Object.keys(stats.shows[show].stats)) {
+							resetValues(show, episode);
+						}
+					}),
+					"*": yargsCommand("* <role> <value..>", (yargs) => {
+						yargs.option("episode", {string: true})
+					}, (argv) => {
+						let roles = "roles" in stats.shows[show]
+							? stats.shows[show].roles
+							: Object.keys(stats.roles);
+						if (!roles.includes(argv.role) && !(argv.role in reservedRoles)) {
+							throw new CommandError(`No such role for ${show}: ${argv.role}`);
+						}
+
+						const episode = getEpisode(show, argv.episode);
+						const value = argv.value.join(" ");
+
+						if (!(episode in stats.shows[show].stats)) {
+							resetValues(show, episode);
+						}
+
+						setStat(show, argv.role, value, argv.episode);
+
+						// clear message if other status set
+						if (argv.role !== "message") {
+							setStat(show, "message", "", argv.episode);
+						}
+
+						if (episode === getEpisode(show)) {
+							notify(show, argv.role);
+						}
+					})
+				})
+
+				discordClient.updateDiscordTrackers(show);
+			},
+			"add-show": vCommand((show, ...name) => {
+				stats.shows[show] = {
+					title: name.join(" "),
+					stats: {},
+					episode: "01",
+					dateCreated: Date.now()
+				};
+
+				resetValues(show);
+				ioInstance.emit("add-show", {
+					"show": show,
+					"stats": flattenStats(stats.shows[show])
+				});
+
+				source.reply(`Added show: ${show} - ${stats.shows[show].title}`);
+			}),
+			"remove-show": command((show) => {
+				delete stats.shows[show];
+				ioInstance.emit("remove-show", show);
+				source.reply(`Removed show: ${show}`);
+			}),
+			"add-role": vCommand((role, ...description) => {
+				stats.roles[role] = description.join(" ");
+				ioInstance.emit("add-role", {
+					"role": role,
+					"value": stats.roles[role]
+				});
+				source.reply(`Added role description for ${role}: ${stats.roles[role]}`)
+			}),
+			"remove-role": command((role) => {
+				delete stats.roles[role];
+				ioInstance.emit("remove-role", role);
+				source.reply(`Removed role description for ${role}`);
+			}),
+			"track": yargsCommand("* <show>", (yargs) => {
+				yargs.option("topic", {boolean: true})
+			}, (argv) => {
+				if (argv.show in stats.shows && source.service == "discord") {
+					discordClient.addDiscordTracker(argv.show, source);
+				} else if (source.service != "discord") {
+					throw new CommandError("Tracking only supported from Discord");
+				} else {
+					throw new CommandError(`No such show: ${argv.show}`)
+				}
+			}),
+			"track-stop": command((show) => {
+				if (show in stats.shows && source.service == "discord") {
+					discordClient.clearDiscordTracker(show, source);
+				} else if (source.service != "discord") {
+					throw new CommandError("Tracking only supported from Discord");
+				} else {
+					throw new CommandError(`No such show: ${show}`);
+				}
+			}),
+			"status": yargsCommand("* <show> [episode]", () => {}, (argv) => {
+				if (argv.show in stats.shows) {
+					let episode = getEpisode(argv.show, argv.episode);
+					let status = getEpisodeStatus(argv.show, argv.episode);
+					if (status) {
+						source.reply(status);
+					} else {
+						throw new CommandError(`No such episode for ${argv.show}: ${episode}`);
+					}
+				} else {
+					throw new CommandError(`No such show: ${argv.show}`);
+				}
+			})
+		})
+	} catch (e) {
+		if (e instanceof CommandError) {
+			source.reply("Error: " + e.message);
+		} else {
+			throw e;
 		}
 	}
 }
