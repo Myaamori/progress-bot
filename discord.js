@@ -46,15 +46,22 @@ function discordify(message) {
 	return message.replace(/<\/?b>/g, "**").replace(/<\/?i>/g, "*").replace(/<\/?s>/g, "~~");
 }
 
-export function addDiscordTracker(show, source) {
+export function addDiscordTracker(show, source, topic = false) {
 	if (!("discordTrackers" in common.stats.shows[show])) {
 		common.stats.shows[show].discordTrackers = {};
 	}
 
-	source.reply(common.getEpisodeStatus(show))
-		.then(msg => {
-			common.stats.shows[show].discordTrackers[msg.channel.id] = msg.id;
-		}).catch(error => source.reply("Failed to send message."));
+	if (topic) {
+		source.message.channel.setTopic(discordify(common.getEpisodeStatus(show)))
+			.then(channel => {
+				common.stats.shows[show].discordTrackers[channel.id] = "topic";
+			}).catch(error => source.reply("Failed to set channel topic: " + error.message))
+	} else {
+		source.reply(common.getEpisodeStatus(show))
+			.then(msg => {
+				common.stats.shows[show].discordTrackers[msg.channel.id] = msg.id;
+			}).catch(error => source.reply("Failed to send message: " + error.message));
+	}
 }
 
 export function clearDiscordTracker(show, source) {
@@ -70,7 +77,11 @@ export function updateDiscordTrackers(show) {
 		for (const [channelId, msgId] of Object.entries(common.stats.shows[show].discordTrackers)) {
 			let channel = client.channels.get(channelId);
 			if (channel !== undefined) {
-				channel.fetchMessage(msgId).then(msg => msg.edit(status));
+				if (msgId === "topic") {
+					channel.setTopic(status);
+				} else {
+					channel.fetchMessage(msgId).then(msg => msg.edit(status));
+				}
 			}
 		}
 	}

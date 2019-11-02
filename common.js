@@ -371,7 +371,7 @@ export function runCommand(text, source) {
 				yargs.option("topic", {boolean: true})
 			}, (argv) => {
 				if (argv.show in stats.shows && source.service == "discord") {
-					discordClient.addDiscordTracker(argv.show, source);
+					discordClient.addDiscordTracker(argv.show, source, argv.topic);
 				} else if (source.service != "discord") {
 					throw new CommandError("Tracking only supported from Discord");
 				} else {
