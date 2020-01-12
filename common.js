@@ -150,7 +150,7 @@ export function getEpisodeStatus(show, episode) {
 }
 
 function getEpisode(show, episode) {
-	return episode === undefined ? stats.shows[show].episode : episode;
+	return !episode ? stats.shows[show].episode : episode;
 }
 
 function setStat(show, command, value, episode) {
@@ -272,6 +272,7 @@ export function runCommand(text, source) {
 				if (!(show in stats.shows)) {
 					throw new CommandError(`No such show: ${show}`);
 				}
+				let episode = null;
 
 				parse(tail, {
 					"episode": vCommand((...description) => {
@@ -297,8 +298,8 @@ export function runCommand(text, source) {
 							"value": roles
 						});
 
-						for (let episode of Object.keys(stats.shows[show].stats)) {
-							resetValues(show, episode);
+						for (let ep of Object.keys(stats.shows[show].stats)) {
+							resetValues(show, ep);
 						}
 					}),
 					"*": yargsCommand("* <role> <value..>", (yargs) => {
@@ -311,7 +312,7 @@ export function runCommand(text, source) {
 							throw new CommandError(`No such role for ${show}: ${argv.role}`);
 						}
 
-						const episode = getEpisode(show, argv.episode);
+						episode = getEpisode(show, argv.episode);
 						const value = argv.value.join(" ");
 
 						if (!(episode in stats.shows[show].stats)) {
@@ -332,6 +333,10 @@ export function runCommand(text, source) {
 				})
 
 				discordClient.updateDiscordTrackers(show);
+
+				if (config.replyStatus) {
+					source.reply(getEpisodeStatus(show, episode));
+				}
 			},
 			"add-show": vCommand((show, ...name) => {
 				stats.shows[show] = {

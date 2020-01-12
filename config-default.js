@@ -24,6 +24,7 @@ const config = {
 	httpsKey: "/path/to/key.pem", //port, key, and cert not required in http mode
 	httpsCert: "/path/to/cert.pem",
 	trigger: "!pb ", //Word to trigger actions. IMPORTANT: INCLUDE A TRAILING SPACE
+	replyStatus: false, // if true, will reply to the same channel with the updated status
 	identify: false, //Set to true to enable nickserv identification
 	nick_secret: false, //set to a "" enclosed password if you dont want to enter it every time
 	// else leave false to prompt for a password
