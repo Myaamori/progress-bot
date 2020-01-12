@@ -121,7 +121,7 @@ export function getToSay(show, command) {
 	}
 }
 
-export function getEpisodeStatus(show, episode) {
+export function getEpisodeStatus(show, episode, highlightRole) {
 	episode = getEpisode(show, episode);
 	let episodeStats = stats.shows[show].stats[episode];
 	if (episodeStats === undefined) {
@@ -138,12 +138,16 @@ export function getEpisodeStatus(show, episode) {
 
 	let roleStatus = Array.from(status.stats.entries()).map(([role, value]) => {
 		let progress = getProgress(value);
-		if (progress == '0%') {
-			return role;
-		} else if (progress == "100%") {
-			return `<s>${role}</s>`;
+		let text = progress == '0%'
+			? role
+			: progress == '100%'
+				? `<s>${role}</s>`
+				: `${role}: ${progress}`;
+
+		if (role === highlightRole) {
+			return `<b>${text}</b>`;
 		} else {
-			return `${role}: ${progress}`;
+			return text;
 		}
 	}).join(", ");
 	return `<b>${status.title}</b> | Episode ${status.episode} | ${roleStatus}`;
@@ -273,6 +277,7 @@ export function runCommand(text, source) {
 					throw new CommandError(`No such show: ${show}`);
 				}
 				let episode = null;
+				let changedRole = null;
 
 				parse(tail, {
 					"episode": vCommand((...description) => {
@@ -320,6 +325,7 @@ export function runCommand(text, source) {
 						}
 
 						setStat(show, argv.role, value, argv.episode);
+						changedRole = argv.role;
 
 						// clear message if other status set
 						if (argv.role !== "message") {
@@ -335,7 +341,7 @@ export function runCommand(text, source) {
 				discordClient.updateDiscordTrackers(show);
 
 				if (config.replyStatus) {
-					source.reply(getEpisodeStatus(show, episode));
+					source.reply(getEpisodeStatus(show, episode, changedRole));
 				}
 			},
 			"add-show": vCommand((show, ...name) => {
