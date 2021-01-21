@@ -203,7 +203,7 @@ export function flattenStats(showStats) {
 }
 
 function notify(show, command) {
-	let replyMessage = getToSay(show, command);
+	let replyMessage = getEpisodeStatus(show, false, command);
 	if (config.enableDiscord && replyMessage) discordClient.discordSay(replyMessage);
 	if (config.enableIrc && replyMessage) ircClient.ircSay(replyMessage);
 
