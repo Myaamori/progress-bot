@@ -203,9 +203,10 @@ export function flattenStats(showStats) {
 }
 
 function notify(show, command) {
-	let replyMessage = getEpisodeStatus(show, false, command);
-	if (config.enableDiscord && replyMessage) discordClient.discordSay(replyMessage);
-	if (config.enableIrc && replyMessage) ircClient.ircSay(replyMessage);
+	let ircMessage = getToSay(show, command)
+	let discordMessage = getEpisodeStatus(show, false, command);
+	if (config.enableDiscord && ircMessage) discordClient.discordSay(discordMessage);
+	if (config.enableIrc && ircMessage) ircClient.ircSay(ircMessage);
 
 	lastUpdated = new Date().toUTCString();
 	ioInstance.emit("date-update", lastUpdated);
