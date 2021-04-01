@@ -37,7 +37,7 @@ export function initDiscord() {
 export function discordSay(message) {
 	message = discordify(message);
 	config.discordNotifyChannels.forEach( async value => {
-		let channel = client.channels.get(value);
+		let channel = await client.channels.fetch(value);
 		await channel.send(message);
 	});
 }
@@ -75,14 +75,13 @@ export function updateDiscordTrackers(show) {
 
 	if ("discordTrackers" in common.stats.shows[show]) {
 		for (const [channelId, msgId] of Object.entries(common.stats.shows[show].discordTrackers)) {
-			let channel = client.channels.get(channelId);
-			if (channel !== undefined) {
+			client.channels.fetch(channelId).then(channel => {
 				if (msgId === "topic") {
-					channel.setTopic(status);
+					channel.setTopic(status)
 				} else {
-					channel.fetchMessage(msgId).then(msg => msg.edit(status));
+					channel.messages.fetch(msgId).then(msg => msg.edit(status));
 				}
-			}
+			})
 		}
 	}
 }
